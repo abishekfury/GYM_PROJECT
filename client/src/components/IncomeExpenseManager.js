@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -27,7 +27,6 @@ import {
   FormControl,
   InputLabel,
   Select,
-  DatePicker,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,7 +36,6 @@ import {
   TrendingDown as ExpenseIcon,
   AccountBalance as BalanceIcon,
   Payment as PaymentIcon,
-  Receipt as ReceiptIcon,
 } from '@mui/icons-material';
 import { LocalizationProvider, DatePicker as MuiDatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -92,9 +90,9 @@ const IncomeExpenseManager = () => {
   useEffect(() => {
     fetchIncomeData();
     fetchExpenseData();
-  }, []);
+  }, [fetchIncomeData, fetchExpenseData]);
 
-  const fetchIncomeData = async () => {
+  const fetchIncomeData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await financeAPI.getIncome();
@@ -107,9 +105,9 @@ const IncomeExpenseManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchExpenseData = async () => {
+  const fetchExpenseData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await financeAPI.getExpenses();
@@ -122,7 +120,7 @@ const IncomeExpenseManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const showAlert = (type, message) => {
     setAlert({ show: true, type, message });

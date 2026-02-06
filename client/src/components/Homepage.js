@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
   Dumbbell, 
   Users, 
@@ -12,9 +12,7 @@ import {
   MapPin,
   Phone,
   Mail,
-  Calendar,
-  CheckCircle2,
-  AlertTriangle
+  Calendar
 } from 'lucide-react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -33,7 +31,6 @@ const Homepage = () => {
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 300], [0, -50]);
   const y2 = useTransform(scrollY, [0, 300], [0, 50]);
-  const scale = useTransform(scrollY, [0, 300], [1, 1.1]);
 
   // Contact form state
   const [formData, setFormData] = useState({

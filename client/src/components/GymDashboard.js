@@ -3,12 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Users, 
-  TrendingUp, 
   Activity, 
-  Calendar,
   DollarSign,
   UserPlus,
-  Clock,
   AlertTriangle,
   CheckCircle,
   Edit,
@@ -16,7 +13,6 @@ import {
   RefreshCw,
   LogOut,
   BarChart3,
-  UserCheck,
   Menu,
   X
 } from 'lucide-react';

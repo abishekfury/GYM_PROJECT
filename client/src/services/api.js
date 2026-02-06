@@ -21,11 +21,6 @@ const getToken = () => {
   return token;
 };
 
-const setToken = (token) => {
-  console.log('🔍 setToken called with:', token ? 'Valid token' : 'Invalid token');
-  localStorage.setItem('authToken', token);
-};
-
 const removeToken = () => {
   console.log('🗑️ removeToken called - clearing all auth data');
   console.trace('removeToken call stack');

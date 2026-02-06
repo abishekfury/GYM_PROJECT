@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   TrendingUp,
   MapPin,
-  Clock,
   ArrowRight
 } from 'lucide-react';
 import Skeleton from 'react-loading-skeleton';

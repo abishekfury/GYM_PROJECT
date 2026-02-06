@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  CreditCard,
-  Lock,
   CheckCircle2,
   AlertTriangle,
   ArrowLeft,

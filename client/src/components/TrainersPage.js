@@ -10,12 +10,8 @@ import {
   Instagram,
   Facebook,
   Twitter,
-  Mail,
-  Phone,
-  MapPin,
   CheckCircle2,
   ArrowRight,
-  Filter,
   Search
 } from 'lucide-react';
 import Skeleton from 'react-loading-skeleton';
