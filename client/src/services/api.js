@@ -66,7 +66,7 @@ api.interceptors.response.use(
             if (!currentToken) {
               removeToken();
               if (!window.location.pathname.includes('login')) {
-                window.location.href = '/manual-login';
+                window.location.href = '/login';
               }
             }
           }, 1000);

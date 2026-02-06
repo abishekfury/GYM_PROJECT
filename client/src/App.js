@@ -191,6 +191,18 @@ function AppContent() {
       <Route path="/trainers" element={<TrainersPage />} />
       <Route path="/contact" element={<ContactUs />} />
       
+      {/* Login routes */}
+      <Route 
+        path="/login" 
+        element={
+          isLoggedIn ? (
+            <Navigate to="/admin/dashboard" replace />
+          ) : (
+            <LoginPage onLogin={handleLogin} />
+          )
+        } 
+      />
+      
       {/* Manual admin login route - not visible to users */}
       <Route 
         path="/manual-login" 
@@ -210,14 +222,14 @@ function AppContent() {
           isLoggedIn ? (
             <Navigate to="/admin/dashboard" replace />
           ) : (
-            <Navigate to="/manual-login" replace />
+            <Navigate to="/login" replace />
           )
         } 
       />
       
       <Route 
         path="/admin/dashboard" 
-        element={isLoggedIn ? <GymDashboard onLogout={handleLogout} user={user} /> : <Navigate to="/manual-login" replace />} 
+        element={isLoggedIn ? <GymDashboard onLogout={handleLogout} user={user} /> : <Navigate to="/login" replace />} 
       />
       
       <Route 
@@ -227,7 +239,7 @@ function AppContent() {
             <AdminNavigation onLogout={handleLogout} user={user} />
             <MemberRegistration />
           </div>
-        ) : <Navigate to="/manual-login" replace />} 
+        ) : <Navigate to="/login" replace />} 
       />
       
       <Route 
@@ -237,7 +249,7 @@ function AppContent() {
             <AdminNavigation onLogout={handleLogout} user={user} />
             <MembersList />
           </div>
-        ) : <Navigate to="/manual-login" replace />} 
+        ) : <Navigate to="/login" replace />} 
       />
       
       <Route 
@@ -247,7 +259,7 @@ function AppContent() {
             <AdminNavigation onLogout={handleLogout} user={user} />
             <IncomeExpenseManager />
           </div>
-        ) : <Navigate to="/manual-login" replace />} 
+        ) : <Navigate to="/login" replace />} 
       />
     </Routes>
   );

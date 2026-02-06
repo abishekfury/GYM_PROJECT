@@ -1,0 +1,11 @@
+{
+    "buildCommand": "cd client && npm ci && npm run build",
+    "outputDirectory": "client/build",
+    "installCommand": "echo 'Skipping install'",
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/"
+        }
+    ]
+}
