@@ -182,7 +182,6 @@ const MembersList = () => {
       setFilteredMembers(data);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching members:', error);
       setAlert({
         show: true,
         type: 'error',
@@ -198,14 +197,12 @@ const MembersList = () => {
   };
 
   const handleEditMember = (member) => {
-    console.log('Edit member:', member);
     setEditingMember({ ...member });
     setEditDialogOpen(true);
     setDialogOpen(false); // Close view dialog if open
   };
 
   const handleDeleteMember = (member) => {
-    console.log('Delete member:', member);
   };
 
   const updateMember = async (updatedMember) => {
@@ -234,7 +231,6 @@ const MembersList = () => {
       }, 3000);
       
     } catch (error) {
-      console.error('Error updating member:', error);
       setAlert({
         show: true,
         type: 'error',

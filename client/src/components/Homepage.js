@@ -174,7 +174,6 @@ const Homepage = () => {
       }
       
     } catch (error) {
-      console.error('Contact form error:', error);
       setSubmitStatus({ 
         type: 'error', 
         message: 'Network error. Please check your connection and try again.' 

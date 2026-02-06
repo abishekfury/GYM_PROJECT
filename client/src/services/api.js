@@ -3,8 +3,6 @@ import axios from 'axios';
 // Force the correct API URL
 const API_BASE_URL = 'http://localhost:5000/api';
 
-console.log('🔧 API Base URL:', API_BASE_URL); // Debug log
-
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,13 +15,10 @@ const api = axios.create({
 // Token management
 const getToken = () => {
   const token = localStorage.getItem('authToken');
-  console.log('🔍 getToken called, result:', token ? 'Present' : 'Missing');
   return token;
 };
 
 const removeToken = () => {
-  console.log('🗑️ removeToken called - clearing all auth data');
-  console.trace('removeToken call stack');
   localStorage.removeItem('authToken');
   localStorage.removeItem('isLoggedIn');
   localStorage.removeItem('user');
@@ -34,8 +29,6 @@ const removeToken = () => {
 api.interceptors.request.use(
   (config) => {
     const token = getToken();
-    console.log('🔍 Request interceptor - Token:', token ? 'Present' : 'Missing');
-    console.log('🔍 Request URL:', config.baseURL + config.url);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -49,15 +42,9 @@ api.interceptors.request.use(
 // Response interceptor to handle auth errors
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ Successful response from:', response.config.url);
     return response;
   },
   (error) => {
-    console.log('❌ Response error:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      message: error.response?.data?.error || error.message
-    });
     
     if (error.response) {
       const { status } = error.response;
@@ -69,18 +56,14 @@ api.interceptors.response.use(
         const isDashboardRequest = error.config?.url?.includes('/dashboard/stats');
         
         if (!isLoginRequest && !isVerifyRequest && isDashboardRequest) {
-          console.log('🚪 401 error on dashboard - checking if this is during initial load');
           
           // Don't automatically logout on dashboard 401 errors during initial load
           // Let the user manually logout if needed
-          console.log('🚪 Dashboard 401 - not auto-logging out to prevent login loops');
         } else if (!isLoginRequest && !isVerifyRequest && !isDashboardRequest) {
-          console.log('🚪 401 error on other protected route - will logout after delay');
           
           setTimeout(() => {
             const currentToken = getToken();
             if (!currentToken) {
-              console.log('🚪 No token found - clearing auth and redirecting');
               removeToken();
               if (!window.location.pathname.includes('login')) {
                 window.location.href = '/manual-login';
@@ -91,11 +74,8 @@ api.interceptors.response.use(
       }
       
       // Handle other errors
-      console.error('API Error:', error.response.data.error || error.message);
     } else if (error.request) {
-      console.error('Network Error:', error.message);
     } else {
-      console.error('Error:', error.message);
     }
     
     return Promise.reject(error);
@@ -107,21 +87,15 @@ export const authAPI = {
   // Admin login
   login: async (credentials) => {
     try {
-      console.log('🔐 authAPI.login called with:', credentials);
-      console.log('🔐 Attempting login with URL:', API_BASE_URL + '/auth/login');
-      
+
       const response = await api.post('/auth/login', credentials);
-      console.log('🔐 Raw login response:', response);
       
       if (!response.data || !response.data.token) {
         throw new Error('No token received from server');
       }
       
       const { token, admin } = response.data;
-      
-      console.log('🔐 Login successful, token received:', token ? 'YES' : 'NO');
-      console.log('🔐 Admin data:', admin);
-      
+            
       // Force save to localStorage immediately
       localStorage.setItem('authToken', token);
       localStorage.setItem('isLoggedIn', 'true');
@@ -130,7 +104,6 @@ export const authAPI = {
       
       // Verify it was saved
       const savedToken = localStorage.getItem('authToken');
-      console.log('🔐 Token verification after save:', savedToken ? 'SAVED' : 'FAILED');
       
       if (!savedToken) {
         throw new Error('Failed to save token to localStorage');
@@ -138,10 +111,7 @@ export const authAPI = {
       
       return response.data;
     } catch (error) {
-      console.error('❌ Login error:', error);
       if (error.response) {
-        console.error('❌ Response status:', error.response.status);
-        console.error('❌ Response data:', error.response.data);
       }
       throw new Error(error.response?.data?.error || error.message || 'Login failed');
     }
@@ -163,7 +133,6 @@ export const authAPI = {
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      console.warn('Logout request failed:', error.message);
     } finally {
       removeToken();
     }

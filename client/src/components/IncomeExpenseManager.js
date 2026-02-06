@@ -93,7 +93,6 @@ const IncomeExpenseManager = () => {
       const response = await financeAPI.getIncome();
       setIncomeData(response);
     } catch (error) {
-      console.error('Error fetching income:', error);
       showAlert('error', 'Failed to fetch income data');
       // Fallback to mock data on error
       setIncomeData([]);
@@ -108,7 +107,6 @@ const IncomeExpenseManager = () => {
       const response = await financeAPI.getExpenses();
       setExpenseData(response);
     } catch (error) {
-      console.error('Error fetching expenses:', error);
       showAlert('error', 'Failed to fetch expense data');
       // Fallback to mock data on error
       setExpenseData([]);
@@ -199,7 +197,6 @@ const IncomeExpenseManager = () => {
       await fetchExpenseData();
       handleCloseDialog();
     } catch (error) {
-      console.error('Submit error:', error);
       showAlert('error', `Failed to ${editingItem ? 'update' : 'add'} ${dialogType}`);
     } finally {
       setLoading(false);
@@ -220,7 +217,6 @@ const IncomeExpenseManager = () => {
         await fetchIncomeData();
         await fetchExpenseData();
       } catch (error) {
-        console.error('Delete error:', error);
         showAlert('error', `Failed to delete ${type}`);
       }
     }

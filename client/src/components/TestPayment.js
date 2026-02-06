@@ -13,11 +13,9 @@ const TestPayment = () => {
         currency: 'INR'
       };
       
-      console.log('Mock Payment Success:', mockPaymentData);
       alert('Payment Successful! (Mock Mode)\n\nOrder ID: ' + mockPaymentData.orderId);
       
     } catch (error) {
-      console.error('Mock Payment Error:', error);
       alert('Payment Failed: ' + error.message);
     }
   };

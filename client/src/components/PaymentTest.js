@@ -46,8 +46,7 @@ const PaymentTest = () => {
           membershipPlan={testPlan}
           customerInfo={testCustomer}
           onPaymentSuccess={(data) => {
-            console.log('Payment successful:', data);
-            alert('Payment successful! Check console for details.');
+
             setIsOpen(false);
           }}
         />

@@ -105,16 +105,12 @@ const MembershipInquiryModal = ({ isOpen, onClose }) => {
       
       try {
         setPlansLoading(true);
-        console.log('Fetching membership plans...');
         const response = await fetch(`${process.env.REACT_APP_API_URL}/api/payments/plans`);
         const data = await response.json();
-        
-        console.log('Plans response:', data);
         
         if (data.success && data.data && data.data.length > 0) {
           // Transform plans for frontend use
           const transformedPlans = data.data.map(plan => {
-            console.log('Transforming plan:', plan.name, 'features:', plan.features);
             return {
               id: plan._id,
               name: plan.name,
@@ -128,14 +124,12 @@ const MembershipInquiryModal = ({ isOpen, onClose }) => {
                   .filter(f => f.included !== false) // Include features that are explicitly included or don't have included field
                   .map(f => {
                     const featureName = typeof f === 'string' ? f : f.name;
-                    console.log('Feature transformed:', f, '->', featureName);
                     return featureName;
                   }) : 
                 ['Access to gym facilities'],
               popular: plan.isPopular || false
             };
           });
-          console.log('Transformed plans:', transformedPlans);
           
           // Safety check to ensure all features are strings
           const safeTransformedPlans = transformedPlans.map(plan => ({
@@ -145,10 +139,8 @@ const MembershipInquiryModal = ({ isOpen, onClose }) => {
           
           setMembershipPlans(safeTransformedPlans);
         } else {
-          console.log('No plans received, keeping fallback');
         }
       } catch (error) {
-        console.error('Error fetching membership plans:', error);
         // Keep the fallback plans that were already set
       } finally {
         setPlansLoading(false);
@@ -360,7 +352,6 @@ Please contact me to discuss membership options and schedule a tour.
         });
       }
     } catch (error) {
-      console.error('Membership inquiry error:', error);
       setSubmitStatus({ 
         type: 'error', 
         message: 'Network error. Please check your connection and try again.' 

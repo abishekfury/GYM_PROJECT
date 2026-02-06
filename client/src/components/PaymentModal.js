@@ -113,7 +113,6 @@ const PaymentModal = ({
         setError(data.message || 'Failed to create order');
       }
     } catch (err) {
-      console.error('Create order error:', err);
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         setError('Unable to connect to payment server. Please ensure the backend is running.');
       } else {
