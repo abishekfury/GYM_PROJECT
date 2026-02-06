@@ -1,0 +1,556 @@
+const express = require('express');
+const router = express.Router();
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+const Payment = require('../models/Payment');
+const MembershipPlan = require('../models/MembershipPlan');
+const Member = require('../models/Member');
+const rateLimit = require('express-rate-limit');
+
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+// Rate limiting for payment endpoints
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: 'Too many payment attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// @route   GET /api/payments/membership-plans
+// @desc    Get all active membership plans
+// @access  Public
+router.get('/membership-plans', async (req, res) => {
+  try {
+    const plans = await MembershipPlan.getActivePlans();
+    
+    res.json({
+      success: true,
+      data: plans
+    });
+  } catch (error) {
+    console.error('Get membership plans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch membership plans'
+    });
+  }
+});
+
+// @route   GET /api/payments/membership-plans/recommended
+// @desc    Get recommended membership plans based on user profile
+// @access  Public
+router.get('/membership-plans/recommended', async (req, res) => {
+  try {
+    const { experience, fitnessGoal } = req.query;
+    const userProfile = { experience, fitnessGoal };
+    
+    const plans = await MembershipPlan.getRecommendedPlans(userProfile);
+    
+    res.json({
+      success: true,
+      data: plans,
+      userProfile
+    });
+  } catch (error) {
+    console.error('Get recommended plans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recommended plans'
+    });
+  }
+});
+
+// @route   POST /api/payments/create-payment-intent
+// @desc    Create payment intent for membership
+// @access  Public
+router.post('/create-payment-intent', paymentLimiter, async (req, res) => {
+  try {
+    const { 
+      planId, 
+      customerInfo,
+      membershipStartDate,
+      discountCode,
+      billingAddress 
+    } = req.body;
+
+    // Validate required fields
+    if (!planId || !customerInfo?.name || !customerInfo?.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Plan ID and customer information are required'
+      });
+    }
+
+    // Get membership plan
+    const plan = await MembershipPlan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Membership plan not found or inactive'
+      });
+    }
+
+    // Calculate amount and taxes
+    let amount = plan.price;
+    let discountAmount = 0;
+    
+    // Apply discount if provided
+    if (discountCode) {
+      // Simple discount logic - you can expand this
+      switch (discountCode.toUpperCase()) {
+        case 'WELCOME20':
+          discountAmount = amount * 0.20;
+          break;
+        case 'STUDENT15':
+          discountAmount = amount * 0.15;
+          break;
+        case 'NEWYEAR25':
+          discountAmount = amount * 0.25;
+          break;
+      }
+    }
+
+    // Calculate taxes (18% GST for India)
+    const taxRate = 0.18;
+    const taxAmount = (amount - discountAmount) * taxRate;
+    const totalAmount = amount - discountAmount + taxAmount;
+
+    // Convert to smallest currency unit (paise for INR)
+    const amountInSmallestUnit = Math.round(totalAmount * 100);
+
+    // Create or get Stripe customer
+    let stripeCustomer;
+    const existingCustomers = await stripe.customers.list({
+      email: customerInfo.email,
+      limit: 1
+    });
+
+    if (existingCustomers.data.length > 0) {
+      stripeCustomer = existingCustomers.data[0];
+    } else {
+      stripeCustomer = await stripe.customers.create({
+        name: customerInfo.name,
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        address: billingAddress,
+        metadata: {
+          source: 'gym_website',
+          planId: plan._id.toString()
+        }
+      });
+    }
+
+    // Calculate membership end date
+    const startDate = new Date(membershipStartDate || Date.now());
+    const endDate = new Date(startDate);
+    switch (plan.duration.unit) {
+      case 'day':
+        endDate.setDate(endDate.getDate() + plan.duration.value);
+        break;
+      case 'week':
+        endDate.setDate(endDate.getDate() + (plan.duration.value * 7));
+        break;
+      case 'month':
+        endDate.setMonth(endDate.getMonth() + plan.duration.value);
+        break;
+      case 'year':
+        endDate.setFullYear(endDate.getFullYear() + plan.duration.value);
+        break;
+    }
+
+    // Create payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInSmallestUnit,
+      currency: plan.currency.toLowerCase(),
+      customer: stripeCustomer.id,
+      payment_method_types: ['card'],
+      metadata: {
+        planId: plan._id.toString(),
+        planName: plan.name,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        membershipStartDate: startDate.toISOString(),
+        membershipEndDate: endDate.toISOString(),
+        source: 'gym_website'
+      },
+      description: `${plan.name} membership for ${customerInfo.name}`,
+      receipt_email: customerInfo.email
+    });
+
+    // Create payment record in database
+    const payment = new Payment({
+      customer: {
+        name: customerInfo.name,
+        email: customerInfo.email,
+        phone: customerInfo.phone
+      },
+      amount: amount,
+      currency: plan.currency,
+      membershipPlan: plan._id,
+      membershipStartDate: startDate,
+      membershipEndDate: endDate,
+      stripePaymentIntentId: paymentIntent.id,
+      stripeCustomerId: stripeCustomer.id,
+      status: 'pending',
+      taxes: {
+        amount: taxAmount,
+        rate: taxRate,
+        type: 'GST'
+      },
+      discount: {
+        amount: discountAmount,
+        code: discountCode || null,
+        type: 'percentage'
+      },
+      totalAmount: totalAmount,
+      billingAddress: billingAddress,
+      metadata: {
+        source: 'website',
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip
+      }
+    });
+
+    await payment.save();
+
+    res.json({
+      success: true,
+      data: {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        paymentId: payment._id,
+        amount: totalAmount,
+        formattedAmount: payment.formattedAmount,
+        plan: {
+          id: plan._id,
+          name: plan.name,
+          description: plan.description,
+          features: plan.features
+        },
+        membership: {
+          startDate: startDate,
+          endDate: endDate,
+          duration: plan.durationText
+        },
+        breakdown: {
+          planPrice: amount,
+          discount: discountAmount,
+          taxes: taxAmount,
+          total: totalAmount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Create payment intent error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payment intent'
+    });
+  }
+});
+
+// @route   POST /api/payments/confirm-payment
+// @desc    Confirm payment and create membership
+// @access  Public
+router.post('/confirm-payment', async (req, res) => {
+  try {
+    const { paymentIntentId, paymentId } = req.body;
+
+    if (!paymentIntentId || !paymentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment Intent ID and Payment ID are required'
+      });
+    }
+
+    // Get payment from database
+    const payment = await Payment.findById(paymentId).populate('membershipPlan');
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment record not found'
+      });
+    }
+
+    // Verify payment with Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (paymentIntent.status === 'succeeded') {
+      // Update payment status
+      await payment.markAsSucceeded();
+
+      // Create or update member record
+      let member = await Member.findOne({ email: payment.customer.email });
+      
+      if (member) {
+        // Update existing member
+        member.membershipType = payment.membershipPlan.name;
+        member.membershipStartDate = payment.membershipStartDate;
+        member.membershipEndDate = payment.membershipEndDate;
+        member.membershipStatus = 'active';
+        member.paymentHistory.push({
+          paymentId: payment._id,
+          amount: payment.totalAmount,
+          date: new Date(),
+          plan: payment.membershipPlan.name
+        });
+        await member.save();
+      } else {
+        // Create new member
+        member = new Member({
+          name: payment.customer.name,
+          email: payment.customer.email,
+          phone: payment.customer.phone,
+          membershipType: payment.membershipPlan.name,
+          membershipStartDate: payment.membershipStartDate,
+          membershipEndDate: payment.membershipEndDate,
+          membershipStatus: 'active',
+          paymentHistory: [{
+            paymentId: payment._id,
+            amount: payment.totalAmount,
+            date: new Date(),
+            plan: payment.membershipPlan.name
+          }],
+          address: payment.billingAddress
+        });
+        await member.save();
+      }
+
+      // Update payment with member reference
+      payment.customer.memberId = member._id;
+      await payment.save();
+
+      // Send confirmation email (you can implement this)
+      // await sendMembershipConfirmationEmail(member, payment);
+
+      res.json({
+        success: true,
+        message: 'Payment confirmed and membership activated successfully!',
+        data: {
+          payment: payment.summary,
+          member: {
+            id: member._id,
+            name: member.name,
+            email: member.email,
+            membershipType: member.membershipType,
+            membershipEndDate: member.membershipEndDate,
+            status: member.membershipStatus
+          }
+        }
+      });
+
+    } else {
+      // Payment failed
+      await payment.markAsFailed();
+      
+      res.status(400).json({
+        success: false,
+        message: 'Payment was not successful',
+        data: {
+          status: paymentIntent.status,
+          paymentId: payment._id
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Confirm payment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm payment'
+    });
+  }
+});
+
+// @route   POST /api/payments/webhook
+// @desc    Handle Stripe webhook events
+// @access  Public (Stripe)
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error(`Webhook signature verification failed:`, err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  try {
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        await handleSuccessfulPayment(paymentIntent);
+        break;
+        
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object;
+        await handleFailedPayment(failedPayment);
+        break;
+        
+      case 'customer.subscription.created':
+        // Handle subscription creation if you implement recurring payments
+        break;
+        
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Webhook handler error:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
+  }
+});
+
+// Helper function to handle successful payment
+async function handleSuccessfulPayment(paymentIntent) {
+  try {
+    const payment = await Payment.findOne({ 
+      stripePaymentIntentId: paymentIntent.id 
+    }).populate('membershipPlan');
+    
+    if (payment && payment.status !== 'succeeded') {
+      await payment.markAsSucceeded();
+      
+      // Update payment method details
+      if (paymentIntent.payment_method) {
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentIntent.payment_method);
+        payment.paymentMethod = {
+          type: paymentMethod.type,
+          last4: paymentMethod.card?.last4,
+          brand: paymentMethod.card?.brand,
+          details: paymentMethod.card || {}
+        };
+        await payment.save();
+      }
+      
+      console.log(`Payment ${payment.transactionId} marked as succeeded`);
+    }
+  } catch (error) {
+    console.error('Handle successful payment error:', error);
+  }
+}
+
+// Helper function to handle failed payment
+async function handleFailedPayment(paymentIntent) {
+  try {
+    const payment = await Payment.findOne({ 
+      stripePaymentIntentId: paymentIntent.id 
+    });
+    
+    if (payment && payment.status !== 'failed') {
+      await payment.markAsFailed();
+      console.log(`Payment ${payment.transactionId} marked as failed`);
+    }
+  } catch (error) {
+    console.error('Handle failed payment error:', error);
+  }
+}
+
+// @route   GET /api/payments
+// @desc    Get all payments (Admin only)
+// @access  Private
+router.get('/', authenticateAdmin, async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      status, 
+      startDate,
+      endDate,
+      search 
+    } = req.query;
+
+    // Build filter
+    const filter = {};
+    if (status) filter.status = status;
+    
+    if (startDate && endDate) {
+      filter.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+    
+    if (search) {
+      filter.$or = [
+        { 'customer.name': { $regex: search, $options: 'i' } },
+        { 'customer.email': { $regex: search, $options: 'i' } },
+        { transactionId: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Execute query
+    const skip = (page - 1) * limit;
+    const [payments, totalPayments] = await Promise.all([
+      Payment.find(filter)
+        .populate('membershipPlan', 'name description')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Payment.countDocuments(filter)
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        payments,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalPayments / limit),
+          totalPayments,
+          limit: parseInt(limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get payments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payments'
+    });
+  }
+});
+
+// @route   GET /api/payments/revenue-stats
+// @desc    Get revenue statistics (Admin only)
+// @access  Private
+router.get('/revenue-stats', authenticateAdmin, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    
+    const stats = await Payment.getRevenueStats(start, end);
+    const monthlyRevenue = await Payment.getMonthlyRevenue(new Date().getFullYear());
+    
+    res.json({
+      success: true,
+      data: {
+        periodStats: stats[0] || { totalRevenue: 0, totalPayments: 0, averageAmount: 0 },
+        monthlyRevenue,
+        period: { startDate: start, endDate: end }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get revenue stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch revenue statistics'
+    });
+  }
+});
+
+module.exports = router;
