@@ -319,9 +319,7 @@ const GymDashboard = ({ onLogout, user }) => {
 
   const fetchDashboardData = async () => {
     try {
-      console.log('🏋️ GymDashboard: Fetching dashboard data...');
       const statsData = await dashboardAPI.getStats();
-      console.log('📊 Dashboard stats received:', statsData);
       setStats(statsData);
 
       const membersData = await membersAPI.getAll();
@@ -333,7 +331,6 @@ const GymDashboard = ({ onLogout, user }) => {
       setLoading(false);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
       setAlert({
         show: true,
         type: 'error',
@@ -370,7 +367,6 @@ const GymDashboard = ({ onLogout, user }) => {
       closeEdit();
       setTimeout(() => setAlert({ show: false, type: '', message: '' }), 3000);
     } catch (err) {
-      console.error('Edit error', err);
       setAlert({ show: true, type: 'error', message: err.message || 'Failed to update member' });
       setTimeout(() => setAlert({ show: false, type: '', message: '' }), 3000);
     }
@@ -394,7 +390,6 @@ const GymDashboard = ({ onLogout, user }) => {
       setAlert({ show: true, type: 'success', message: 'Member deleted' });
       setTimeout(() => setAlert({ show: false, type: '', message: '' }), 3000);
     } catch (err) {
-      console.error('Delete error', err);
       setAlert({ show: true, type: 'error', message: err.message || 'Failed to delete member' });
       setTimeout(() => setAlert({ show: false, type: '', message: '' }), 3000);
     } finally {

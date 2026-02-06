@@ -73,7 +73,6 @@ const ContactMessagesAdmin = () => {
         setStatistics(data.data.statistics);
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
       // Show error notification
     } finally {
       setLoading(false);
@@ -98,7 +97,6 @@ const ContactMessagesAdmin = () => {
         setSelectedMessage(null);
       }
     } catch (error) {
-      console.error('Error updating status:', error);
     }
   };
 
@@ -121,7 +119,6 @@ const ContactMessagesAdmin = () => {
         setSelectedMessage(null);
       }
     } catch (error) {
-      console.error('Error deleting message:', error);
     }
   };
 

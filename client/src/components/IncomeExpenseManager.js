@@ -87,11 +87,6 @@ const IncomeExpenseManager = () => {
 
   const paymentMethods = ['Cash', 'Bank Transfer', 'UPI', 'Credit Card', 'Debit Card'];
 
-  useEffect(() => {
-    fetchIncomeData();
-    fetchExpenseData();
-  }, [fetchIncomeData, fetchExpenseData]);
-
   const fetchIncomeData = useCallback(async () => {
     try {
       setLoading(true);
@@ -121,6 +116,11 @@ const IncomeExpenseManager = () => {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    fetchIncomeData();
+    fetchExpenseData();
+  }, [fetchIncomeData, fetchExpenseData]);
 
   const showAlert = (type, message) => {
     setAlert({ show: true, type, message });

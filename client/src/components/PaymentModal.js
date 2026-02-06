@@ -50,7 +50,6 @@ const PaymentModal = ({
   });
 
   const [discountCode, setDiscountCode] = useState('');
-  const [discountApplied, setDiscountApplied] = useState(null);
   const [orderData, setOrderData] = useState(null);
 
   // Reset state when modal opens
@@ -59,7 +58,6 @@ const PaymentModal = ({
       setStep(1);
       setError(null);
       setDiscountCode('');
-      setDiscountApplied(null);
       setOrderData(null);
       setSucceeded(false);
     }
@@ -111,13 +109,6 @@ const PaymentModal = ({
         
         setOrderData(orderData);
         setStep(3);
-        
-        if (data.billing?.discountAmount > 0) {
-          setDiscountApplied({
-            code: data.billing?.discountCode,
-            amount: data.billing?.discountAmount
-          });
-        }
       } else {
         setError(data.message || 'Failed to create order');
       }
