@@ -22,7 +22,7 @@ const { authenticateAdmin } = require('./middleware/auth');
 const app = express();
 
 // Configuration
-const ALLOWED_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
+const ALLOWED_ORIGIN = process.env.CORS_ORIGIN ;
 const PORT = process.env.PORT || 5000;
 
 // Global rate limiting
