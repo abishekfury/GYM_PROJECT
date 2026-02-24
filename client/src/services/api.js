@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Force the correct API URL
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://gym-project-8o3w.onrender.com';
 
 // Create axios instance
 const api = axios.create({
